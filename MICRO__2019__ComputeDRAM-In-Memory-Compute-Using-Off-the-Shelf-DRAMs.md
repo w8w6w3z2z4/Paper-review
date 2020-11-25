@@ -3,15 +3,17 @@
 # Paper Information
 
 * Title: ComputeDRAM: In-Memory Compute Using Off-the-Shelf DRAMs
-* Authors: Gao, Fei; Tziantzioulis, Georgios; Wentzlaff, David
-* Venue: MICRO_2019
-* Keywords: DRAM, in-memory computing, bit-serial, main memory
+* Authors: Fei Gao; Georgios Tziantzioulis; David Wentzlaff
+* Venue: MICRO 2019
+* Keywords: In-memory computing, logic AND, logic OR, row copy, off-the-shelf DRAMs,  arbitrary computations, robustness
 
 # Paper content
 
 ## Summary
 
-This is an article about a processing-in-memory technique, conputeDRAM. Usually DRAM memory controllers have nominal operations of specific timing sequences. The technique exploits the side-effects of non-nominal operations of DRAM modules. The proposed computeDRAM can perform logic AND/OR and row copy in memory by violating the DRAM timing constraints. It can perform these operations on off-the-shelf, unmodified commerical DRAM. Since only logic AND/OR and row copy fall short of performing arbitrary computations, the researchers proposed a software framework that could perform arbitrary computations by using the three operations. Evaluation and discussion show that this technique suits massive computations that exhibits a large amount of main memory access and has very high energy efficiency.
+This is an article about a processing-in-memory technique, ComputeDRAM. It is a method that performs logic AND, logic OR and row copy with off-the-shelf, unmodified, commercial DRAM. The ComputeDRAM solves the problem that previous works requires modification to RAM. Adding additional logic is unpractical since the competitive and low-margin nature of DRAM industry has made commercial manufacturers resist to do so. 
+
+Usually DRAM memory controllers have nominal operations of specific timing sequences. The technique exploits the side-effects of non-nominal operations of DRAM modules. The proposed computeDRAM can perform logic AND/OR and row copy in memory by violating the DRAM timing constraints. It can perform these operations on off-the-shelf, unmodified commerical DRAM. Since only logic AND/OR and row copy fall short of performing arbitrary computations, the researchers proposed a software framework that could perform arbitrary computations by using the three operations. Evaluation and discussion show that this technique suits massive computations that exhibits a large amount of main memory access and has very high energy efficiency.
 
 ## Strengths
 

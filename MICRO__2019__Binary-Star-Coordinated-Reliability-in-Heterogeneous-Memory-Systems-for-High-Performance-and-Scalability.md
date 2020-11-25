@@ -1,4 +1,4 @@
-* # Zhongfa Wang 2020/11/20
+* # Zhongfa Wang 2020/11/25
 
   # Paper Information
 
@@ -13,33 +13,65 @@
 
   ## Summary
 
-  The researchers proposed a Binary Star, a coordinated memory hierarchy reliability scheme. The researchers is trying to: first,reduce the overheads brought by the reliability schemes of 3D die-stacked DRAM and nonvolatile memories (NVRAM); second, the challenges of exploiting persistent memory techniques. ( Firstly, the overheads. The requirements of larger memory and cache demand process scaling. However, the process scaling brings randomly distributed single-cell failure (SCF) to whom the counter measurements (in-DRAM ECC and rank-level ECC) bring significant storage overheads in DRAM chips. Also, the Through Silicon Vias (TSVs) of the 3D DRAM LLC increase the BER. On another hand, most of the NVRAM have much lower endurance (which means they can wear out). Thus the NVRAM needs to adopt hard error protections, which bring high overheads in both performance and storage. All of these technologies, DRAM, 3D die-stacking and NVRAM need reliability schemes respectively. As a result, a system employing 3D DRAM LLC and NVRAM needs to utilize separate reliability schemes for each of them, which brings redundant protection.  Secondly, exploiting persistent memory (NVRAM) has two disadvantages: first, it require code modifications, which require significant software engineering effort; second applications with no persistence requirements suffer from substantial performance and storage overheads in main memory access.) The Binary Star means the coordinated memory hierarchy reliability design appears like a star system that consists of two “stars” – a 3D DRAM LLC and an NVRAM main memory.
+  The researchers proposed the Binary Star, a coordinated memory hierarchy reliability scheme. The *Binary Star* means the coordinated memory hierarchy reliability design appears like a star system that consists of two “stars” – a 3D DRAM LLC and an NVRAM main memory. The researchers are trying to reduce the overheads brought by the reliability schemes across the 3D die-stacked DRAM last level cache (3D DRAM LLC) and nonvolatile memories (NVRAM).
 
   The key insight of this work is the fact that employing 3D DRAM LLC and NVRAM main memory typically utilizes two separate uncoordinated reliability schemes. This decoupled reliability across the LLC and main memory is redundant: the same piece of data can be repeatedly and unnecessarily protected multiple times, in LLC and main memory. Thus, the key idea of this work is that carefully protecting only one of the data copies is sufficient.  
 
-  In Binary Star, the LLC only detects errors by using cyclic redundancy check (CRC) and NVRAM can correct the data, based on the observation that errors in the LLC can be corrected by consistent data copies in NVRAM main memory. For the scenario that data in LLC and memory are inconsistent, the researches propose *periodic forced writeback* and *consistent cache writeback*. The *periodic forced writeback* periodically forces the writeback of dirty cache lines from all cache levels into the NVRAM main memory and maintain an additional copy of data-checkpoint. The *consistent cache writeback* maintains consistency of the checkpointed data between two forced writeback periods.  On another hand, the consistent cache writeback brings heavy performance and NVRAM storage overheads. Thus,  based on the observation that NVRAM wear leveling naturally redirects and maintains the remapping of data updates to alternative memory locations, the Binary Star leverages the remapping techniques that are already employed by existing NVRAM wear leveling mechanisms. At last, when error occurs in DRAM LLC, the researches proposed error correction and recovery schemes too.
+  The key mechanism of Binary Star (the coordinated memory hierarchy reliability design)  is substituting the LLC's error-correction with error-detection, and correcting the LLC's error with the data copies in the NVRAM, since errors in the LLC can be corrected by consistent data copies in NVRAM main memory.
 
-  From all these schemes, the Binary Star can eliminate the error correction codes in the LLC and achieves higher reliability than using ECC mechanisms.
+  Normally both the 3D DRAM LLC and NVRAM main memory use error checking codes (ECC) to protect data. Different from that, Binary Star lets the LLC adopt only cyclic redundancy check (CRC) codes to ensure errors can be detected. Also, it makes NVRAM maintain consistent data copies that can be used to correct (or avoid) the detected errors in the LLC. To make the data copies in NVRAM consistent with the data in LLC, Binary Star imposes:
+
+  1. Periodic forced writeback
+
+     Binary Star periodically forces the writeback of dirty cache lines from all cache levels into the NVRAM main memory, generating a set of consistent data, i.e., a checkpoint of data, which can be used to recover from LLC errors detected by CRC.
+
+  2. Consistent cache writeback
+
+     Binary Star redirects natural LLC writebacks to NVRAM locations that are different from the locations of the checkpointed data, making checkpointed data (from period forced writeback) stays consistent with the data in LLC.
+
+  To address the problem that consistent cache writeback imposes substantial overheads (address remapping, free data block management and alternative memory regions management), Binary Star imposes a coordinating wear leveling mechanism. By slightly modifying the existing NVRAM wear leveling mechanism, it only redirects NVRAM updates of each data block once during the interval between two consecutive periodic forced writebacks.
+
+  To implement Binary Star, a computer system needs to modify:
+
+  * 3D DRAM LLC
+
+    Replace the ECC in LLC with CRC.
+
+  * Memory controller
+
+    * Modify the Segment Swap design by maintaining a set of metadata, which mark segments for the data from periodic forced writeback and consistent cache writeback.
+    * Modify the memory controller's wear leveling control logic to enable our consistent cache writeback mechanism.
+    * Add two instructions to support periodic forced writeback and retrieve and roll back to checkpointed consistent data (correct error).
+
+  * System software
+
+    A Binary Star daemon that is in charge of periodic forced writeback and rollback. It can be implemented as a kernel loadable module.
+
+  The evaluation results show that Binary Star provides strong error protection on 3D DRAM LLCs, regardless of technology node and single cell error. Given specific single cell BERs, Binary Star shows the lowest device failure rate, compared to common ECC technologies. On the other hand, Binary Star provides comparable performance to the baseline with 3D DRAM cache and DRAM main memory. Also, the periodic forced writeback interval length is a noticeable variable, because it causes a trade off between performance, reliability, NVRAM endurance and the effective NVRAM capacity.
 
   ## Strengths
 
-  * This work focuses on emerging technologies, in other words, 3D DRAM last-level cache and nonvolatile main memory while prior works only handle SRAM cache and DRAM main memory.
-  * This work considered reaping the full reliability advantages of them beyond simply replacing the existing memory technologies.
-  * The researcher develop a set of new software-hardware cooperative mechanisms to make the Binary Star transparent to the applications.
+  * Binary Star is the first memory hierarchy reliability scheme that coordinates the reliability mechanisms across the last-level cache and nonvolatile memory.
+  * This significantly reduces the performance and storage overhead of consistent cache writeback.
+  * The work improves the throughput and reliability of memory LLC and main memory hierarchy at the same time.
+  * The proposed technique that coordinates the consistent cache writeback technique with NVRAM wear leveling reduces the performance, storage and hardware implementation overheads.
 
   ## Weaknesses
 
-  * The Introduction is somehow vague. The writer didn't explain the link between motivations (the reasons why did they do such work) and contributions (what they have done) well.
-  * The writer didn't mention the link between DRAM main memory and 3D DRAM LLC. At some part of the paper the writer used DRAM to denote DRAM main memory, which makes the words more vague: is the 3D DRAM LLC the DRAM mentioned before?
-  * The paper didn't give the full name of some abbreviations. For example, RECC, PCM and BER.
+  * The scheme requires relatively more modifications on different levels: LLC, memory controller, and even operating system, which makes it hard to implement.
+  * Imposing more writebacks brings more energy consumption, which is a huge constraint of the computer system.
+  * Even having wear-leveling schemes, the NVRAM has wear out problems. Bringing more data writes doesn't help maintain its lifetime.
+  * Since the Binary Star reduces the error-correcting in LLC, how could it have better reliability than the schemes who have ECC in both LLC and main memory? The paper doesn't give an answer.
+  * The Introduction is somehow vague. The writer didn't explain the link between motivations (the reasons why they do such work) and contributions (what they have done) well.
 
   ## Thoughts
 
-  * I think it's better to make the introduction part clear. 
-  * We should give the full name when an abbreviation occurs at the first time.
-  * Energy is am important designing constraint. Since the Binary Star brings more writeback, it will be better to evaluate its energy consumption.
+  * Energy is an important design constraint. Since Binary Star brings more writeback, it will be better to evaluate its energy consumption.
+  * This work focuses on the resilience technique to transient errors, hard errors and the Randomly distributed single-cell failure (SCF) of DRAM. Is there any more coordination that we can exploit between LLC and main memory?
+  * Is there any more coordination that we can exploit between others' memory hierarchies?
 
   ## Takeaways and questions
 
-  * I learned knowledge about memory hierarchy: cache, last-level cache and main memory. Also I make clear some of the cache operations, such as writeback.
-  * This work mainly talks about reliability. How about performance? How good in performance will the heterogeneous memory system be, comparing to the traditional/ existing memory systems?
+  * This work talks about the cooperation schemes between memory hierarchies.
+  * This work mainly talks about reliability. How about performance? How good will the heterogeneous memory system be, compared to the traditional/ existing memory systems?
+  * The reason why Binary Star's reliability is better than the memory hierarchy protected by ECC in both LLC and main memory needs to be discussed.
